@@ -1,5 +1,7 @@
 package simpledb;
 
+import com.sun.media.sound.RIFFInvalidDataException;
+
 import java.io.Serializable;
 
 /**
@@ -9,6 +11,9 @@ import java.io.Serializable;
 public class RecordId implements Serializable {
 
     private static final long serialVersionUID = 1L;
+
+    private PageId pid;
+    private int tupleNo;
 
     /**
      * Creates a new RecordId referring to the specified PageId and tuple
@@ -21,6 +26,8 @@ public class RecordId implements Serializable {
      */
     public RecordId(PageId pid, int tupleno) {
         // some code goes here
+        this.pid = pid;
+        this.tupleNo = tupleno;
     }
 
     /**
@@ -28,7 +35,7 @@ public class RecordId implements Serializable {
      */
     public int getTupleNumber() {
         // some code goes here
-        return 0;
+        return tupleNo;
     }
 
     /**
@@ -36,7 +43,7 @@ public class RecordId implements Serializable {
      */
     public PageId getPageId() {
         // some code goes here
-        return null;
+        return pid;
     }
 
     /**
@@ -48,7 +55,20 @@ public class RecordId implements Serializable {
     @Override
     public boolean equals(Object o) {
         // some code goes here
-        throw new UnsupportedOperationException("implement this");
+        if (o == null)
+            return false;
+
+        if (o == this)
+            return true;
+
+        if (! (o instanceof RecordId))
+            return false;
+
+        RecordId rid = (RecordId)o;
+        if (this.pid.equals(rid.pid) && this.tupleNo == rid.tupleNo)
+            return true;
+
+        return false;
     }
 
     /**
@@ -60,8 +80,10 @@ public class RecordId implements Serializable {
     @Override
     public int hashCode() {
         // some code goes here
-        throw new UnsupportedOperationException("implement this");
+        int res = pid.hashCode();
+        res = 31 * res + tupleNo;
 
+        return res;
     }
 
 }
