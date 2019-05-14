@@ -1,6 +1,5 @@
 package simpledb;
 
-import com.sun.org.apache.bcel.internal.generic.ALOAD;
 
 import java.util.*;
 import java.io.*;
@@ -24,7 +23,7 @@ public class HeapPage implements Page {
     byte[] oldData;
     private final Byte oldDataLock=new Byte((byte)0);
 
-    public class TupIterator implements Iterator<Tuple> {
+    public class HeapPageIterator implements Iterator<Tuple> {
         int index = 0;
         @Override
         public boolean hasNext() {
@@ -353,7 +352,7 @@ public class HeapPage implements Page {
      */
     public Iterator<Tuple> iterator() {
         // some code goes here
-        return new TupIterator();
+        return new HeapPageIterator();
     }
 
 }
