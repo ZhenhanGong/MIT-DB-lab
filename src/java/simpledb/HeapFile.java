@@ -77,8 +77,11 @@ public class HeapFile implements DbFile {
         HeapPage page = null;
         try {
             RandomAccessFile randAccFile = new RandomAccessFile(file, "r");
-            randAccFile.read(data, pgNo * pgSize, pgSize);
+            long len = file.length();
+            randAccFile.seek(pgNo * pgSize);
+            randAccFile.read(data);
             page = new HeapPage((HeapPageId) pid, data);
+            randAccFile.close();
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -130,8 +133,6 @@ public class HeapFile implements DbFile {
 
             this.tid = tid;
             tableId = getId();
-            System.out.println("getId " + getId());
-            System.out.println("hash " + file.getAbsoluteFile().hashCode());
             pageIndex = 0;
             this.numPages = numPages;
         }
@@ -183,7 +184,6 @@ public class HeapFile implements DbFile {
     // see DbFile.java for javadocs
     public DbFileIterator iterator(TransactionId tid) {
         // some code goes here
-        System.out.println("num page: " + numPages());
         return new ConcreteDbFileIterator(tid, numPages());
     }
 
