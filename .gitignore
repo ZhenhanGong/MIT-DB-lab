@@ -1,5 +1,6 @@
-.classpath
-.project
 bin/
 dist/
 log
+.idea/
+simple-db-hw.iml
+out/
