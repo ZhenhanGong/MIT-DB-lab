@@ -1,5 +1,6 @@
 package simpledb;
 
+
 import java.util.*;
 import java.io.*;
 
@@ -21,6 +22,25 @@ public class HeapPage implements Page {
 
     byte[] oldData;
     private final Byte oldDataLock=new Byte((byte)0);
+
+    public class HeapPageIterator implements Iterator<Tuple> {
+        int index = 0;
+        @Override
+        public boolean hasNext() {
+            // jump non-used slots
+            while (index < tuples.length && !isSlotUsed(index))
+                index++;
+            return index < tuples.length;
+        }
+        @Override
+        public Tuple next() {
+            return tuples[index++];
+        }
+        @Override
+        public void remove() {
+            throw new UnsupportedOperationException();
+        }
+    }
 
     /**
      * Create a HeapPage from a set of bytes of data read from disk.
@@ -65,10 +85,9 @@ public class HeapPage implements Page {
     /** Retrieve the number of tuples on this page.
         @return the number of tuples on this page
     */
-    private int getNumTuples() {        
+    private int getNumTuples() {
         // some code goes here
-        return 0;
-
+        return (BufferPool.getPageSize() * 8) / (td.getSize() * 8 + 1);
     }
 
     /**
@@ -76,10 +95,11 @@ public class HeapPage implements Page {
      * @return the number of bytes in the header of a page in a HeapFile with each tuple occupying tupleSize bytes
      */
     private int getHeaderSize() {        
-        
         // some code goes here
-        return 0;
-                 
+        if (getNumTuples() % 8 == 0)
+            return getNumTuples() / 8;
+        else
+            return getNumTuples() / 8 + 1;
     }
     
     /** Return a view of this page before it was modified
@@ -112,7 +132,7 @@ public class HeapPage implements Page {
      */
     public HeapPageId getId() {
     // some code goes here
-    throw new UnsupportedOperationException("implement this");
+        return pid;
     }
 
     /**
@@ -282,7 +302,27 @@ public class HeapPage implements Page {
      */
     public int getNumEmptySlots() {
         // some code goes here
-        return 0;
+        int cnt = 0;
+
+        for (byte bt : header) {
+            if ((bt & 1 ) == 0)
+                cnt++;
+            if ((bt & (1 << 1)) == 0)
+                cnt++;
+            if ((bt & (1 << 2)) == 0)
+                cnt++;
+            if ((bt & (1 << 3)) == 0)
+                cnt++;
+            if ((bt & (1 << 4)) == 0)
+                cnt++;
+            if ((bt & (1 << 5)) == 0)
+                cnt++;
+            if ((bt & (1 << 6)) == 0)
+                cnt++;
+            if ((bt & (1 << 7)) == 0)
+                cnt++;
+        }
+        return cnt;
     }
 
     /**
@@ -290,7 +330,15 @@ public class HeapPage implements Page {
      */
     public boolean isSlotUsed(int i) {
         // some code goes here
-        return false;
+        assert (i >= 0 && i < getNumTuples()) : "Index Out of Bound";
+
+        int index = i / 8;
+        int shift = i % 8;
+
+        if ( (header[index] & (1 << shift)) != 0)
+            return true;
+        else
+            return false;
     }
 
     /**
@@ -307,7 +355,7 @@ public class HeapPage implements Page {
      */
     public Iterator<Tuple> iterator() {
         // some code goes here
-        return null;
+        return new HeapPageIterator();
     }
 
 }
