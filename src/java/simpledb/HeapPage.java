@@ -27,7 +27,10 @@ public class HeapPage implements Page {
         int index = 0;
         @Override
         public boolean hasNext() {
-            return index != (tuples.length - getNumEmptySlots());
+            // jump non-used slots
+            while (index < tuples.length && !isSlotUsed(index))
+                index++;
+            return index < tuples.length;
         }
         @Override
         public Tuple next() {
