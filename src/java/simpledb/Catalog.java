@@ -56,6 +56,15 @@ public class Catalog {
     public void addTable(DbFile file, String name, String pkeyField) {
         // some code goes here
         Table table = new Table(file, name, pkeyField);
+
+        // remove old table with the same name
+        for (int tableId : tables.keySet()) {
+            if (tables.get(tableId).name.equals(name)) {
+                tables.remove(tableId);
+                tables.put(file.getId(), table);
+                return;
+            }
+        }
         tables.put(file.getId(), table);
     }
 
