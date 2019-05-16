@@ -28,7 +28,6 @@ public class Tuple implements Serializable {
         // some code goes here
         assert td.numFields() > 0 : "Can't use TupleDesc of 0 filed to init Tuple";
 
-        // TODO rid not init
         tupleDesc = td;
         fields = new ArrayList<>(td.numFields());
 
@@ -103,7 +102,6 @@ public class Tuple implements Serializable {
         // some code goes here
         String res = new String();
 
-        // TODO what if field is null
         for (int i = 0; i < fields.size(); i++) {
             res += fields.get(i).toString();
             if (i != fields.size()-1)
