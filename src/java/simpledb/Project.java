@@ -87,10 +87,10 @@ public class Project extends Operator {
 
     @Override
     public void setChildren(OpIterator[] children) {
-	if (this.child!=children[0])
-	{
-	    this.child = children[0];
-	}
+        if (this.child!=children[0])
+        {
+            this.child = children[0];
+        }
     }
     
 }
