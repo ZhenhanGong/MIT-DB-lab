@@ -1,11 +1,28 @@
 package simpledb;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
+
 /**
  * Knows how to compute some aggregate over a set of StringFields.
  */
 public class StringAggregator implements Aggregator {
 
+    // TODO:   note: only support count
+
     private static final long serialVersionUID = 1L;
+    private int groupByFieldIndex;
+    private Type groupByType;
+    private int fieldIndex;
+    private Op op;
+
+    // grouping
+    private HashMap<Field, Integer> aggrResult;
+
+    // no grouping
+    private boolean no_grouping;
+    private int aggrResult2;
 
     /**
      * Aggregate constructor
@@ -18,6 +35,15 @@ public class StringAggregator implements Aggregator {
 
     public StringAggregator(int gbfield, Type gbfieldtype, int afield, Op what) {
         // some code goes here
+        if (gbfield == Aggregator.NO_GROUPING) {
+            no_grouping = true;
+        }
+        groupByFieldIndex = gbfield;
+        groupByType = gbfieldtype;
+        fieldIndex = afield;
+        op = what;
+        aggrResult = new HashMap<>();
+        aggrResult2 = 0;
     }
 
     /**
@@ -26,6 +52,21 @@ public class StringAggregator implements Aggregator {
      */
     public void mergeTupleIntoGroup(Tuple tup) {
         // some code goes here
+        // TODO only support count
+        if (no_grouping) {
+            aggrResult2++;
+
+        } else {
+            Field groupByField = tup.getField(groupByFieldIndex);
+
+            // need to create a new group
+            if (!aggrResult.containsKey(groupByField)) {
+                aggrResult.put(groupByField, 1);
+            } else {
+                int count = aggrResult.get(groupByField);
+                aggrResult.replace(groupByField, count+1);
+            }
+        }
     }
 
     /**
@@ -38,7 +79,55 @@ public class StringAggregator implements Aggregator {
      */
     public OpIterator iterator() {
         // some code goes here
-        throw new UnsupportedOperationException("please implement me for lab2");
+
+        if (no_grouping) {
+            Type[] types = new Type[1];
+            types[0] = Type.INT_TYPE;
+            TupleDesc td = new TupleDesc(types);
+
+            ArrayList<Tuple> list = new ArrayList<>();
+            Tuple t = new Tuple(td);
+            IntField field = new IntField(aggrResult2);
+            t.setField(0, field);
+            list.add(t);
+
+            Iterable<Tuple> iterable = new Iterable<Tuple>() {
+                @Override
+                public Iterator<Tuple> iterator() {
+                    return list.iterator();
+                }
+            };
+            return new TupleIterator(td, iterable);
+
+        } else {
+            Type[] types = new Type[2];
+            types[0] = groupByType;
+            types[1] = Type.INT_TYPE;
+            TupleDesc td = new TupleDesc(types);
+
+            // add tuples to list
+            ArrayList<Tuple> list = new ArrayList();
+            for (Field key: aggrResult.keySet()) {
+                int val = aggrResult.get(key);
+                IntField value = new IntField(val);
+
+                Tuple t = new Tuple(td);
+                t.setField(0, key);
+                t.setField(1, value);
+                list.add(t);
+            }
+
+            // new a iterable
+            Iterable<Tuple> iterable = new Iterable<Tuple>() {
+                @Override
+                public Iterator<Tuple> iterator() {
+                    return list.iterator();
+                }
+            };
+
+            // return a TupleIterator
+            return new TupleIterator(td, iterable);
+        }
     }
 
 }
