@@ -61,6 +61,7 @@ public class Tuple implements Serializable {
      */
     public void setRecordId(RecordId rid) {
         // some code goes here
+        // set recordID when loaded into heap page
         this.rid = rid;
     }
 

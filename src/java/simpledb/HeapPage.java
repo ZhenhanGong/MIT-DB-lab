@@ -23,11 +23,14 @@ public class HeapPage implements Page {
     byte[] oldData;
     private final Byte oldDataLock=new Byte((byte)0);
 
+    private TransactionId tid;
+    private boolean isDirty;
+
     public class HeapPageIterator implements Iterator<Tuple> {
         int index = 0;
         @Override
         public boolean hasNext() {
-            // jump non-used slots
+            // jump non-used slots (might be deleted tuples or un-initialized tuples
             while (index < tuples.length && !isSlotUsed(index))
                 index++;
             return index < tuples.length;
@@ -265,6 +268,14 @@ public class HeapPage implements Page {
     public void deleteTuple(Tuple t) throws DbException {
         // some code goes here
         // not necessary for lab1
+
+        RecordId rid = t.getRecordId();
+        PageId pageId = rid.getPageId();
+        int index = rid.getTupleNumber();
+
+        if (pageId != pid || !isSlotUsed(index))
+            throw new DbException("failed to delete tuple");
+        markSlotUsed(index, false);
     }
 
     /**
@@ -275,8 +286,65 @@ public class HeapPage implements Page {
      * @param t The tuple to add.
      */
     public void insertTuple(Tuple t) throws DbException {
+        // TODO    note: insert tuple will reuse slot whose tuple is deleted
         // some code goes here
         // not necessary for lab1
+        if (getNumEmptySlots() == 0)
+            throw new DbException("page is full, failed to insert tuple");
+        if (!t.getTupleDesc().equals(td))
+            throw new DbException("tuple desc does not match");
+
+        int index = getFirstNotUsedSlot();
+        RecordId rid = new RecordId(pid, index);
+        t.setRecordId(rid);
+        tuples[index] = t;
+        markSlotUsed(index, true);
+    }
+
+    private int getFirstNotUsedSlot() {
+
+        int index = 0;
+
+        byte b = 1;
+        for (byte bt : header) {
+            if ((bt & b ) == 0)
+                break;
+            else
+                index++;
+            if ((bt & (b << 1)) == 0)
+                break;
+            else
+                index++;
+            if ((bt & (b << 2)) == 0)
+                break;
+            else
+                index++;
+            if ((bt & (b << 3)) == 0)
+                break;
+            else
+                index++;
+            if ((bt & (b << 4)) == 0)
+                break;
+            else
+                index++;
+            if ((bt & (b << 5)) == 0)
+                break;
+            else
+                index++;
+            if ((bt & (b << 6)) == 0)
+                break;
+            else
+                index++;
+            if ((bt & (b << 7)) == 0)
+                break;
+            else
+                index++;
+        }
+
+        // page is full
+        if (index == numSlots)
+            return -1;
+        return index;
     }
 
     /**
@@ -286,6 +354,8 @@ public class HeapPage implements Page {
     public void markDirty(boolean dirty, TransactionId tid) {
         // some code goes here
 	// not necessary for lab1
+        isDirty = dirty;
+        this.tid = tid;
     }
 
     /**
@@ -294,7 +364,10 @@ public class HeapPage implements Page {
     public TransactionId isDirty() {
         // some code goes here
 	// Not necessary for lab1
-        return null;      
+        if (isDirty)
+            return tid;
+        else
+            return null;
     }
 
     /**
@@ -304,22 +377,23 @@ public class HeapPage implements Page {
         // some code goes here
         int cnt = 0;
 
+        byte b = 1;
         for (byte bt : header) {
-            if ((bt & 1 ) == 0)
+            if ((bt & b ) == 0)
                 cnt++;
-            if ((bt & (1 << 1)) == 0)
+            if ((bt & (b << 1)) == 0)
                 cnt++;
-            if ((bt & (1 << 2)) == 0)
+            if ((bt & (b << 2)) == 0)
                 cnt++;
-            if ((bt & (1 << 3)) == 0)
+            if ((bt & (b << 3)) == 0)
                 cnt++;
-            if ((bt & (1 << 4)) == 0)
+            if ((bt & (b << 4)) == 0)
                 cnt++;
-            if ((bt & (1 << 5)) == 0)
+            if ((bt & (b << 5)) == 0)
                 cnt++;
-            if ((bt & (1 << 6)) == 0)
+            if ((bt & (b << 6)) == 0)
                 cnt++;
-            if ((bt & (1 << 7)) == 0)
+            if ((bt & (b << 7)) == 0)
                 cnt++;
         }
         return cnt;
@@ -334,8 +408,9 @@ public class HeapPage implements Page {
 
         int index = i / 8;
         int shift = i % 8;
+        byte b = 1;
 
-        if ( (header[index] & (1 << shift)) != 0)
+        if ( (header[index] & (b << shift)) != 0)
             return true;
         else
             return false;
@@ -347,6 +422,25 @@ public class HeapPage implements Page {
     private void markSlotUsed(int i, boolean value) {
         // some code goes here
         // not necessary for lab1
+        assert (i >= 0 && i < getNumTuples()) : "Index Out of Bound";
+
+        int index = i / 8;
+        int shift = i % 8;
+        byte b = 1;
+        byte b2 = 0;
+
+        if (value) {
+            // set correspond bit to 1
+            header[index] = (byte) (header[index] | (b << shift));
+        } else {
+            // set to 0
+            for (int x = 0; x < 8; x++) {
+                if (x == shift)
+                    continue;
+                b2 = (byte) (b2 | (b << x));
+            }
+            header[index] = (byte) (header[index] & b2);
+        }
     }
 
     /**

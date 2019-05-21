@@ -144,6 +144,9 @@ public class BufferPool {
         throws DbException, IOException, TransactionAbortedException {
         // some code goes here
         // not necessary for lab1
+        // TODO mark dirty & cache dirty page to ensure up-to-date pages
+        HeapFile file = (HeapFile) Database.getCatalog().getDatabaseFile(tableId);
+        file.insertTuple(tid, t);
     }
 
     /**
@@ -163,6 +166,13 @@ public class BufferPool {
         throws DbException, IOException, TransactionAbortedException {
         // some code goes here
         // not necessary for lab1
+        // TODO mark dirty & cache dirty page to ensure up-to-date pages
+        RecordId rid = t.getRecordId();
+        PageId pid = rid.getPageId();
+        HeapPage page = (HeapPage) getPage(tid, pid, Permissions.READ_WRITE);
+
+        page.deleteTuple(t);
+        page.markDirty(true, tid);
     }
 
     /**
