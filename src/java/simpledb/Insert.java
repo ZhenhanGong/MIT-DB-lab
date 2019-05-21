@@ -7,6 +7,13 @@ package simpledb;
 public class Insert extends Operator {
 
     private static final long serialVersionUID = 1L;
+    private TransactionId tid;
+    private OpIterator child;
+    private int tableId;
+    private TupleDesc td;
+
+    // fetchNext() return # of inserted tuples only once
+    private boolean resReturned;
 
     /**
      * Constructor.
@@ -24,23 +31,37 @@ public class Insert extends Operator {
     public Insert(TransactionId t, OpIterator child, int tableId)
             throws DbException {
         // some code goes here
+        td = Database.getCatalog().getTupleDesc(tableId);
+        if (!child.getTupleDesc().equals(td))
+            throw new DbException("tuple desc not match");
+
+        tid = t;
+        this.child = child;
+        this.tableId = tableId;
     }
 
     public TupleDesc getTupleDesc() {
         // some code goes here
-        return null;
+        return td;
     }
 
     public void open() throws DbException, TransactionAbortedException {
         // some code goes here
+        child.open();
+        super.open();
+        resReturned = false;
     }
 
     public void close() {
         // some code goes here
+        super.close();
+        child.close();
     }
 
     public void rewind() throws DbException, TransactionAbortedException {
         // some code goes here
+        child.rewind();
+        resReturned = false;
     }
 
     /**
@@ -58,17 +79,42 @@ public class Insert extends Operator {
      */
     protected Tuple fetchNext() throws TransactionAbortedException, DbException {
         // some code goes here
-        return null;
+        if (!resReturned) {
+            int cnt = 0;
+            while (child.hasNext()) {
+                Tuple tuple = child.next();
+                try {
+                    Database.getBufferPool().insertTuple(tid, tableId, tuple);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+                cnt++;
+            }
+
+            Type types[] = new Type[1];
+            types[0] = Type.INT_TYPE;
+
+            TupleDesc tupleDesc = new TupleDesc(types);
+            IntField field = new IntField(cnt);
+
+            Tuple t = new Tuple(tupleDesc);
+            t.setField(0, field);
+            resReturned = true;
+            return t;
+        } else
+            return null;
     }
 
     @Override
     public OpIterator[] getChildren() {
         // some code goes here
-        return null;
+        return new OpIterator[] {this.child};
     }
 
     @Override
     public void setChildren(OpIterator[] children) {
         // some code goes here
+        if (this.child != children[0])
+            this.child = children[0];
     }
 }
