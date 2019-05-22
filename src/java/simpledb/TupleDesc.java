@@ -295,6 +295,6 @@ public class TupleDesc implements Serializable {
                res += ", ";
         }
 
-        return "";
+        return res;
     }
 }
