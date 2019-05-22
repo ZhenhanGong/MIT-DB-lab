@@ -2,6 +2,7 @@ package simpledb;
 
 import java.io.*;
 
+import java.util.ArrayList;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -25,8 +26,13 @@ public class BufferPool {
     other classes. BufferPool should use the numPages argument to the
     constructor instead. */
     public static final int DEFAULT_PAGES = 50;
+    private final int numPages; // actual num of pages
 
+    // use an int to record the time the page is added, from 0, 1, ..., n
+    // evict the oldest page
+    private static ConcurrentHashMap<PageId, Integer> pageAge;
     private static ConcurrentHashMap<PageId, Page> pages;
+    private static int age;
 
     /**
      * Creates a BufferPool that caches up to numPages pages.
@@ -35,7 +41,10 @@ public class BufferPool {
      */
     public BufferPool(int numPages) {
         // some code goes here
+        this.numPages = numPages;
         pages = new ConcurrentHashMap<>();
+        pageAge = new ConcurrentHashMap<>();
+        age = 0;
     }
     
     public static int getPageSize() {
@@ -74,9 +83,14 @@ public class BufferPool {
             return pages.get(pid);
         else {
             int tabId = pid.getTableId();
-            HeapFile heapFile = (HeapFile) Database.getCatalog().getDatabaseFile(tabId);
-            Page page = heapFile.readPage(pid);
+            DbFile file =  Database.getCatalog().getDatabaseFile(tabId);
+            Page page = file.readPage(pid);
+
+            if (numPages == pages.size()) {
+                evictPage();
+            }
             pages.put(pid, page);
+            pageAge.put(pid, age++);
             return page;
         }
     }
@@ -144,9 +158,13 @@ public class BufferPool {
         throws DbException, IOException, TransactionAbortedException {
         // some code goes here
         // not necessary for lab1
-        // TODO mark dirty & cache dirty page to ensure up-to-date pages
-        HeapFile file = (HeapFile) Database.getCatalog().getDatabaseFile(tableId);
-        file.insertTuple(tid, t);
+        // TODO cache dirty page to ensure up-to-date pages
+        DbFile file =  Database.getCatalog().getDatabaseFile(tableId);
+        ArrayList<Page> pageList = file.insertTuple(tid, t);
+
+        // after inserted, tuple will get a record Id, then we can mark page dirty
+        for (Page page: pageList)
+            page.markDirty(true, tid);
     }
 
     /**
@@ -166,13 +184,16 @@ public class BufferPool {
         throws DbException, IOException, TransactionAbortedException {
         // some code goes here
         // not necessary for lab1
-        // TODO mark dirty & cache dirty page to ensure up-to-date pages
+        // TODO cache dirty page to ensure up-to-date pages
         RecordId rid = t.getRecordId();
         PageId pid = rid.getPageId();
-        HeapPage page = (HeapPage) getPage(tid, pid, Permissions.READ_WRITE);
+        int tableId = pid.getTableId();
 
-        page.deleteTuple(t);
-        page.markDirty(true, tid);
+        DbFile file = Database.getCatalog().getDatabaseFile(tableId);
+        ArrayList<Page> pageList = file.deleteTuple(tid, t);
+
+        for (Page page: pageList)
+            page.markDirty(true, tid);
     }
 
     /**
@@ -183,7 +204,9 @@ public class BufferPool {
     public synchronized void flushAllPages() throws IOException {
         // some code goes here
         // not necessary for lab1
-
+        for (PageId pid: pages.keySet()) {
+            flushPage(pid);
+        }
     }
 
     /** Remove the specific page id from the buffer pool.
@@ -197,6 +220,8 @@ public class BufferPool {
     public synchronized void discardPage(PageId pid) {
         // some code goes here
         // not necessary for lab1
+        pages.remove(pid);
+        pageAge.remove(pid);
     }
 
     /**
@@ -206,6 +231,11 @@ public class BufferPool {
     private synchronized  void flushPage(PageId pid) throws IOException {
         // some code goes here
         // not necessary for lab1
+        DbFile file = Database.getCatalog().getDatabaseFile(pid.getTableId());
+        Page page = pages.get(pid);
+
+        file.writePage(page);
+        page.markDirty(false, null);
     }
 
     /** Write all pages of the specified transaction to disk.
@@ -222,6 +252,39 @@ public class BufferPool {
     private synchronized  void evictPage() throws DbException {
         // some code goes here
         // not necessary for lab1
+        assert numPages == pages.size() : "Buffor Pool is not full, not need to evict page";
+
+        PageId pageId = null;
+        int oldestAge = -1;
+
+        // find the oldest page to evict
+        for (PageId pid: pageAge.keySet()) {
+            if (pageId == null) {
+                pageId = pid;
+                oldestAge = pageAge.get(pid);
+                continue;
+            }
+
+            if (pageAge.get(pid) < oldestAge) {
+                pageId = pid;
+                oldestAge = pageAge.get(pid);
+            }
+        }
+
+        Page page = pages.get(pageId);
+
+        // isDirty
+        if (page.isDirty() != null) {
+            try {
+                flushPage(pageId);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+
+        // evict page
+        pages.remove(pageId);
+        pageAge.remove(pageId);
     }
 
 }
