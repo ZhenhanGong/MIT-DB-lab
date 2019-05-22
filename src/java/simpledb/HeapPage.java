@@ -378,7 +378,16 @@ public class HeapPage implements Page {
         int cnt = 0;
 
         byte b = 1;
-        for (byte bt : header) {
+
+        for (int i = 0; i < header.length; i++) {
+            byte bt = header[i];
+
+            // TODO the highest byte may have bits not correspond to slots
+            if (i == header.length -1)
+                for (int j = 0; j < getNumTuples() % 8; j++)
+                    if ((bt & (b << j)) == 0)
+                        cnt++;
+
             if ((bt & b ) == 0)
                 cnt++;
             if ((bt & (b << 1)) == 0)
