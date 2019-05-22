@@ -2,7 +2,7 @@ package simpledb;
 
 import java.io.File;
 
-public class MyTest {
+public class Lab1WalkThroughMain {
 
     public static void main(String[] argv) {
 
@@ -13,7 +13,7 @@ public class MyTest {
 
         // create the table, associate it with some_data_file.dat
         // and tell the catalog about the schema of this table.
-        HeapFile table1 = new HeapFile(new File("some_data_file.dat"), descriptor);
+        HeapFile table1 = new HeapFile(new File("lab1_some_data.dat"), descriptor);
         Database.getCatalog().addTable(table1, "test");
 
         // construct the query: we use a simple SeqScan, which spoonfeeds
