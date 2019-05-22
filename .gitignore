@@ -1,5 +1,4 @@
 bin/
-dist/
 log
 .idea/
 simple-db-hw.iml
