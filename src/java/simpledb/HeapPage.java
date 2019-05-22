@@ -24,7 +24,6 @@ public class HeapPage implements Page {
     private final Byte oldDataLock=new Byte((byte)0);
 
     private TransactionId tid;
-    private boolean isDirty;
 
     public class HeapPageIterator implements Iterator<Tuple> {
         int index = 0;
@@ -354,8 +353,10 @@ public class HeapPage implements Page {
     public void markDirty(boolean dirty, TransactionId tid) {
         // some code goes here
 	// not necessary for lab1
-        isDirty = dirty;
-        this.tid = tid;
+        if (!dirty)
+            this.tid = null;
+        else
+            this.tid = tid;
     }
 
     /**
@@ -364,10 +365,7 @@ public class HeapPage implements Page {
     public TransactionId isDirty() {
         // some code goes here
 	// Not necessary for lab1
-        if (isDirty)
-            return tid;
-        else
-            return null;
+        return tid;
     }
 
     /**
