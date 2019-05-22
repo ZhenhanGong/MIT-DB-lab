@@ -1,0 +1,3 @@
+select data.f1, data.f2 from data;
+insert into data (data.f1, data.f2) values (6, 66);
+delete from data where data.f1 = 6 and data.f2 = 66;
