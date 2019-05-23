@@ -4,6 +4,8 @@ import java.util.*;
 
 /**
  * The Join operator implements the relational join operation.
+ *
+ * SELECT * FROM customer c, district d WHERE c.id = d.cid
  */
 public class Join extends Operator {
 

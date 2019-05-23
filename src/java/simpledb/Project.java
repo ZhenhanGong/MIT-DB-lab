@@ -4,6 +4,9 @@ import java.util.*;
 
 /**
  * Project is an operator that implements a relational projection.
+ *
+ * SELECT id, name FROM customer;
+ * customer (id, name, age)
  */
 public class Project extends Operator {
 

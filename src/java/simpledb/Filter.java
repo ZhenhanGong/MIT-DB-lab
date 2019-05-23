@@ -4,6 +4,8 @@ import java.util.*;
 
 /**
  * Filter is an operator that implements a relational select.
+ *
+ * SELECT * FROM customer c WHERE c.id = 1;
  */
 public class Filter extends Operator {
 
