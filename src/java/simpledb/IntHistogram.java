@@ -31,7 +31,7 @@ public class IntHistogram {
 
     /**
      * A histogram contains # buckets of pillars
-     * a Pillar corresponds to a group e.g. 1-3
+     * a Pillar corresponds to a group e.g. 1-3     left = 1   right = 4
      */
     private class Pillar {
         int left;
@@ -46,6 +46,17 @@ public class IntHistogram {
 
         public void add() {
             cnt++;
+        }
+
+        @Override
+        public String toString() {
+            String str = new String();
+            str += "[";
+            str += this.left + ",";
+            str += this.right + ",";
+            str += this.cnt + "] ";
+
+            return str;
         }
     }
 
@@ -90,7 +101,7 @@ public class IntHistogram {
 
         int[] x_values = new int[buckets+1];
         x_values[0] = min;
-        x_values[buckets] = max;
+        x_values[buckets] = max + 1;
 
         int val = min;
         if (width2 == 0) {
@@ -186,6 +197,8 @@ public class IntHistogram {
                         return 0.0;
                 case NOT_EQUALS:
                     return 1.0;
+                default:
+                    throw new UnsupportedOperationException();
             }
         }
 
@@ -274,7 +287,10 @@ public class IntHistogram {
      */
     public String toString() {
         // some code goes here
-        // TODO
-        return null;
+        String str = new String();
+
+        for (Pillar pillar : histogram)
+            str += pillar;
+        return str;
     }
 }
