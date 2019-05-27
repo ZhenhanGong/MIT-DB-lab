@@ -3,6 +3,7 @@ package simpledb;
 /**
  * A class to represent a fixed-width histogram over a single String-based
  * field.
+ * use IntHistogram to do histogram
  */
 public class StringHistogram {
     final IntHistogram hist;
