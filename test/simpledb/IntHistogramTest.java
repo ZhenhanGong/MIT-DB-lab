@@ -15,7 +15,7 @@ public class IntHistogramTest {
 	@Test public void orderOfGrowthTest() {
 		// Don't bother with a timeout on this test.
 		// Printing debugging statements takes >> time than some inefficient algorithms.
-		IntHistogram h = new IntHistogram(10000, 0, 100);
+		IntHistogram h = new IntHistogram(10000, 0, 10000);
 		
 		// Feed the histogram more integers than would fit into our
 		// 128mb allocated heap (4-byte integers)
