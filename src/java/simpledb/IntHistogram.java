@@ -30,7 +30,7 @@ public class IntHistogram {
 
 
     /**
-     * A histogram contains # buckets of pillars
+     * A histogram contains # buckets of pillars (bins)
      * a Pillar corresponds to a group e.g. 1-3     left = 1   right = 4
      */
     private class Pillar {
@@ -84,7 +84,11 @@ public class IntHistogram {
         totalCnt = 0;
 
         int diff = max - min + 1;
-        assert diff >= buckets : "buckerts < diff, make no sense";
+        // if # of buckets is larger than diff, then not all buckets have values
+        if (diff < buckets) {
+            diff = buckets;
+        }
+
         int quotient = diff / buckets; // (29 - 8 + 1) / 6 = 3
         int remainder = diff % buckets; // (29 - 8 + 1) % 6 = 4
 
@@ -101,16 +105,15 @@ public class IntHistogram {
 
         int[] x_values = new int[buckets+1];
         x_values[0] = min;
-        x_values[buckets] = max + 1;
 
         int val = min;
         if (width2 == 0) {
-            for (int i = 1; i < buckets; i++) {
+            for (int i = 1; i <= buckets; i++) {
                 val += width1;
                 x_values[i] = val;
             }
         } else {
-            for (int i = 1; i < buckets; i++) {
+            for (int i = 1; i <= buckets; i++) {
                 if (val < valueMedian)
                     val += width1;
                 else
@@ -133,7 +136,7 @@ public class IntHistogram {
      */
     public void addValue(int v) {
     	// some code goes here
-        assert v >= min && v <= max : "out of range";
+        assert v >= min && v <= max : v + " out of range [" + min + "," + max + "]";
 
         int index = whichBucket(v);
         histogram[index].add();
@@ -232,25 +235,31 @@ public class IntHistogram {
         Pillar pillar = histogram[index];
         int width = pillar.right - pillar.left;
 
+        if (totalCnt == 0)
+            return 0.0;
         return pillar.cnt / (double)width / (double)totalCnt;
     }
 
     private double getSelGT(int index, int v) {
+        assert index >=0 && index < histogram.length : "out of bound";
         double selectivity = 0;
 
         Pillar pillar = histogram[index];
         int width = pillar.right - pillar.left;
-        int range = pillar.right - v;
+        int range = pillar.right - v - 1;
         selectivity += pillar.cnt / (double)width * (double)range;
 
         for (int i = index + 1; i < histogram.length; i++)
             selectivity += histogram[i].cnt;
 
+        if (totalCnt == 0)
+            return 0.0;
         return selectivity / (double)totalCnt;
     }
 
 
     private double getSelLT(int index, int v) {
+        assert index >=0 && index < histogram.length : "out of bound";
         double selectivity = 0;
 
         Pillar pillar = histogram[index];
@@ -261,6 +270,8 @@ public class IntHistogram {
         for (int i = 0; i < index; i++)
             selectivity += histogram[i].cnt;
 
+        if (totalCnt == 0)
+            return 0.0;
         return selectivity / (double)totalCnt;
     }
 
@@ -279,6 +290,8 @@ public class IntHistogram {
         for (Pillar pillar : histogram)
             total += pillar.cnt;
 
+        if (totalCnt == 0)
+            return 0.0;
         return total / totalCnt;
     }
 
