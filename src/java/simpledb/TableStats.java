@@ -71,6 +71,7 @@ public class TableStats {
     private int tableid;
     private int numFields;
     private int numTuples;
+    private int numPages;
     private HashMap<Integer, IntHistogram> intHistogramHashMap;
     private HashMap<Integer, StringHistogram> stringHistogramHashMap;
 
@@ -100,6 +101,7 @@ public class TableStats {
         stringHistogramHashMap = new HashMap<>();
 
         dbFile = Database.getCatalog().getDatabaseFile(tableid);
+        numPages = ((HeapFile)dbFile).numPages();
         TupleDesc td = dbFile.getTupleDesc();
 
         numFields = td.numFields();
