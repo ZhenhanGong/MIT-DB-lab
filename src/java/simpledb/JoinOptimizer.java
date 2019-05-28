@@ -211,7 +211,7 @@ public class JoinOptimizer {
     /**
      * Compute a logical, reasonably efficient join on the specified tables. See
      * PS4 for hints on how this should be implemented.
-     * 
+     *
      * @param stats
      *            Statistics for each table involved in the join, referenced by
      *            base table names, not alias
@@ -236,7 +236,34 @@ public class JoinOptimizer {
 
         // some code goes here
         //Replace the following
-        return joins;
+        PlanCache planCache = new PlanCache();
+
+        Set<Set<LogicalJoinNode>> nodeSets = null;
+        for (int i = 1; i < joins.size() + 1; i++) {
+            nodeSets = enumerateSubsets(joins, i);
+            for (Set<LogicalJoinNode> nodeSet: nodeSets) {
+                double costSoFar = Double.MAX_VALUE;
+                for (LogicalJoinNode node: nodeSet) {
+                    CostCard costCard = computeCostAndCardOfSubplan(stats, filterSelectivities,
+                            node, nodeSet, costSoFar, planCache);
+                    if (costCard == null)
+                        continue;
+                    if (costCard.cost < costSoFar) {
+                        costSoFar = costCard.cost;
+                        planCache.addPlan(nodeSet, costSoFar, costCard.card, costCard.plan);
+                    }
+                }
+            }
+        }
+
+        Vector<LogicalJoinNode> res = null;
+        for (Set<LogicalJoinNode> nodeSet : nodeSets)
+            res = planCache.getOrder(nodeSet);
+
+        if (explain)
+            printJoins(res, planCache, stats, filterSelectivities);
+
+        return res;
     }
 
     // ===================== Private Methods =================================
