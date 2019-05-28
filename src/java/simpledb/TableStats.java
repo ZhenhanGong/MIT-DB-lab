@@ -1,5 +1,6 @@
 package simpledb;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -64,7 +65,14 @@ public class TableStats {
      * 100, though our tests assume that you have at least 100 bins in your
      * histograms.
      */
-    static final int NUM_HIST_BINS = 100;
+    static final int NUM_HIST_BINS = 100; // num of pillars
+    private int ioCostPerPage;
+    private DbFile dbFile;
+    private int tableid;
+    private int numFields;
+    private int numTuples;
+    private HashMap<Integer, IntHistogram> intHistogramHashMap;
+    private HashMap<Integer, StringHistogram> stringHistogramHashMap;
 
     /**
      * Create a new TableStats object, that keeps track of statistics on each
@@ -85,6 +93,111 @@ public class TableStats {
         // necessarily have to (for example) do everything
         // in a single scan of the table.
         // some code goes here
+        numTuples = 0;
+        this.tableid = tableid;
+        this.ioCostPerPage = ioCostPerPage;
+        intHistogramHashMap = new HashMap<>();
+        stringHistogramHashMap = new HashMap<>();
+
+        dbFile = Database.getCatalog().getDatabaseFile(tableid);
+        TupleDesc td = dbFile.getTupleDesc();
+
+        numFields = td.numFields();
+        Type types[] = getTypes(td);
+
+        int[] mins = new int[numFields];
+        int[] maxs = new int[numFields];
+
+        TransactionId tid = new TransactionId();
+        SeqScan scan = new SeqScan(tid, tableid, "");
+        try {
+            scan.open();
+            for (int i = 0; i < numFields; i++) {
+                if (types[i] == Type.STRING_TYPE)
+                    continue;
+
+                // init min & max
+                int min = Integer.MAX_VALUE;
+                int max = Integer.MIN_VALUE;
+
+                // update min & max
+                while (scan.hasNext()) {
+                    if (i == 0)
+                        numTuples++;
+                    Tuple tuple = scan.next();
+                    IntField field = (IntField) tuple.getField(i);
+                    int val = field.getValue();
+                    if (val > max)
+                        max = val;
+                    if (val < min)
+                        min = val;
+                }
+
+                scan.rewind();
+                // store min & max
+                mins[i] = min;
+                maxs[i] = max;
+            }
+            scan.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+
+        for (int i = 0; i < numFields; i++) {
+            Type type = types[i];
+            if (type == Type.INT_TYPE) {
+                // TODO what if max-min < NUM_HIST_BINS
+                IntHistogram intHistogram = new IntHistogram(NUM_HIST_BINS, mins[i], maxs[i]);
+                intHistogramHashMap.put(i, intHistogram);
+            } else {
+                // TODO what if max-min < NUM_HIST_BINS
+                StringHistogram stringHistogram = new StringHistogram(NUM_HIST_BINS);
+                stringHistogramHashMap.put(i, stringHistogram);
+            }
+        }
+
+        addValuesToHist();
+    }
+
+
+    private Type[] getTypes(TupleDesc td) {
+        int numFields = td.numFields();
+        Type[] types = new Type[numFields];
+
+        for (int i = 0; i < numFields; i++) {
+            Type field = td.getFieldType(i);
+            types[i] = field;
+        }
+        return types;
+    }
+
+    private void addValuesToHist() {
+
+        TransactionId tid = new TransactionId();
+        SeqScan scan = new SeqScan(tid, tableid, "");
+        try {
+            scan.open();
+
+            while (scan.hasNext()) {
+                Tuple tuple = scan.next();
+
+                for (int i = 0; i < numFields; i++) {
+                    Field field = tuple.getField(i);
+
+                    if (field.getType() == Type.INT_TYPE) {
+                        int val = ((IntField)field).getValue();
+                        intHistogramHashMap.get(i).addValue(val);
+                    } else {
+                        String val = ((StringField)field).getValue();
+                        stringHistogramHashMap.get(i).addValue(val);
+                    }
+                }
+            }
+            scan.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     /**
@@ -101,7 +214,8 @@ public class TableStats {
      */
     public double estimateScanCost() {
         // some code goes here
-        return 0;
+        HeapFile heapFile = (HeapFile)dbFile;
+        return heapFile.numPages() * ioCostPerPage;
     }
 
     /**
@@ -115,7 +229,8 @@ public class TableStats {
      */
     public int estimateTableCardinality(double selectivityFactor) {
         // some code goes here
-        return 0;
+        double cardinality = numTuples * selectivityFactor;
+        return (int)cardinality;
     }
 
     /**
@@ -148,7 +263,15 @@ public class TableStats {
      */
     public double estimateSelectivity(int field, Predicate.Op op, Field constant) {
         // some code goes here
-        return 1.0;
+        double selectivity;
+        if (constant.getType() == Type.INT_TYPE) {
+            IntField intField = (IntField)constant;
+            selectivity = intHistogramHashMap.get(field).estimateSelectivity(op, intField.getValue());
+        } else {
+            StringField stringField = (StringField)constant;
+            selectivity = stringHistogramHashMap.get(field).estimateSelectivity(op, stringField.getValue());
+        }
+        return selectivity;
     }
 
     /**
@@ -156,7 +279,7 @@ public class TableStats {
      * */
     public int totalTuples() {
         // some code goes here
-        return 0;
+        return numTuples;
     }
 
 }
