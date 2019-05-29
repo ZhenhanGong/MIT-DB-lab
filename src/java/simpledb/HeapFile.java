@@ -129,8 +129,11 @@ public class HeapFile implements DbFile {
             page = (HeapPage) Database.getBufferPool().getPage(tid, pid, Permissions.READ_WRITE);
             if (page.getNumEmptySlots() != 0)
                 break;
+            else
+                Database.getBufferPool().releasePage(tid, pid);
         }
 
+        // TODO shold this fragment of code be synchronized in java?
         // new a new page & write to file
         // then read it from file through BuffurPool
         if (page == null || page.getNumEmptySlots() == 0) {

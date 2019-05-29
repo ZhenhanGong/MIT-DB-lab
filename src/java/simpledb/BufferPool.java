@@ -4,6 +4,7 @@ import java.io.*;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Vector;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -36,38 +37,114 @@ public class BufferPool {
     private static int age;
     private PageLockManager lockManager;
 
+    private class Lock {
+        TransactionId tid;
+        int lockType; // 0 shared lock, 1 exclusive lock
+
+        public Lock(TransactionId tid, int lockType) {
+            this.tid = tid;
+            this.lockType = lockType;
+        }
+    }
+
     private class PageLockManager {
 
-        HashMap<PageId, TransactionId> pageTxMap;
+        HashMap<PageId, Vector<Lock>> lockMap;
 
         public PageLockManager() {
-            pageTxMap = new HashMap<>();
+            lockMap = new HashMap<>();
         }
 
-        public synchronized boolean acquireLock(PageId pid, TransactionId tid) {
-            if (pageTxMap.get(pid) != null)
-                return false;
-            else {
-                pageTxMap.put(pid, tid);
+        public synchronized boolean acquireLock(PageId pid, TransactionId tid, int lockType) {
+            // if no lock is held on pid
+            if (lockMap.get(pid) == null) {
+                Lock lock = new Lock(tid, lockType);
+                Vector<Lock> locks = new Vector<>();
+                locks.add(lock);
+                lockMap.put(pid, locks);
+
                 return true;
             }
+
+            // if some Tx holds lock on pid
+            // locks.size() won't be 0 because releaseLock will remove 0 size locks from lockMap
+            Vector<Lock> locks = lockMap.get(pid);
+
+            // if tid already holds lock on pid
+            for (Lock lock : locks) {
+                if (lock.tid == tid) {
+                    // already hold that lock
+                    if (lock.lockType == lockType)
+                        return true;
+                    // already hold exclusive lock when accquire shared lock
+                    if (lock.lockType == 1)
+                        return true;
+                    // already hold shared lock, upgrade to exclusive lock
+                    if (locks.size() == 1) {
+                        lock.lockType = 1;
+                        return true;
+                    } else
+                        return false;
+                }
+            }
+
+            // if the lock is a exclusive lock
+            if (locks.get(0).lockType == 1) {
+                assert locks.size() == 1 : "exclusive lock can't coexist with other locks";
+                return false;
+            }
+
+            // if no exclusive lock is held, there could be multiple shared locks
+            if (lockType == 0) {
+
+                Lock lock = new Lock(tid, 0);
+                locks.add(lock);
+                lockMap.put(pid, locks);
+
+                return true;
+            }
+            // can not acquire a exclusive lock(lockType 1) when there are shard locks on pid
+            return false;
         }
 
         public synchronized boolean releaseLock(PageId pid, TransactionId tid) {
-            assert pageTxMap.get(pid) != null : "page not locked!";
-            assert pageTxMap.get(pid) == tid : "can not release lock of another TX!";
 
-            pageTxMap.remove(pid);
-            return true;
+            // if not a single lock is held on pid
+            assert lockMap.get(pid) != null : "page not locked!";
+            Vector<Lock> locks = lockMap.get(pid);
+
+            for (int i = 0; i < locks.size(); i++) {
+                Lock lock = locks.get(i);
+
+                // release lock
+                if (lock.tid == tid) {
+                    locks.remove(lock);
+
+                    // if the last lock is released
+                    // remove 0 size locks from lockMap
+                    if (locks.size() == 0)
+                        lockMap.remove(pid);
+                    return true;
+                }
+            }
+            // not found tid in tids which hold lock on pid
+            return false;
         }
 
         public synchronized boolean holdsLock(PageId pid, TransactionId tid) {
-            if (pageTxMap.get(pid) == null)
+
+            // if not a single lock is held on pid
+            if (lockMap.get(pid) == null)
                 return false;
-            else if (pageTxMap.get(pid) != tid)
-                return false;
-            else
-                return true;
+
+            Vector<Lock> locks = lockMap.get(pid);
+
+            // check if a tid exist in pid's vector of locks
+            for (Lock lock : locks)
+                if (lock.tid == tid)
+                    return true;
+
+            return false;
         }
     }
 
@@ -117,9 +194,15 @@ public class BufferPool {
     public  Page getPage(TransactionId tid, PageId pid, Permissions perm)
         throws TransactionAbortedException, DbException {
         // some code goes here
+        int lockType;
+        if (perm == Permissions.READ_ONLY)
+            lockType = 0;
+        else
+            lockType = 1;
+
         boolean lockAcquired = false;
         while (!lockAcquired)
-            lockAcquired = lockManager.acquireLock(pid, tid);
+            lockAcquired = lockManager.acquireLock(pid, tid, lockType);
 
         if (pages.get(pid) != null)
             return pages.get(pid);
@@ -160,6 +243,11 @@ public class BufferPool {
     public void transactionComplete(TransactionId tid) throws IOException {
         // some code goes here
         // not necessary for lab1|lab2
+
+        for (PageId pid: pages.keySet()) {
+            if (holdsLock(tid, pid))
+                releasePage(tid, pid);
+        }
     }
 
     /** Return true if the specified transaction has a lock on the specified page */
@@ -180,6 +268,11 @@ public class BufferPool {
         throws IOException {
         // some code goes here
         // not necessary for lab1|lab2
+        // release all locks
+        if (commit) {
+            flushPages(tid);
+        }
+        transactionComplete(tid);
     }
 
     /**
@@ -286,6 +379,9 @@ public class BufferPool {
     public synchronized  void flushPages(TransactionId tid) throws IOException {
         // some code goes here
         // not necessary for lab1|lab2
+        // TODO
+        for (PageId pid : pages.keySet()) {
+        }
     }
 
     /**
