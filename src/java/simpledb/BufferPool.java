@@ -3,6 +3,7 @@ package simpledb;
 import java.io.*;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -33,6 +34,42 @@ public class BufferPool {
     private static ConcurrentHashMap<PageId, Integer> pageAge;
     private static ConcurrentHashMap<PageId, Page> pages;
     private static int age;
+    private PageLockManager lockManager;
+
+    private class PageLockManager {
+
+        HashMap<PageId, TransactionId> pageTxMap;
+
+        public PageLockManager() {
+            pageTxMap = new HashMap<>();
+        }
+
+        public synchronized boolean acquireLock(PageId pid, TransactionId tid) {
+            if (pageTxMap.get(pid) != null)
+                return false;
+            else {
+                pageTxMap.put(pid, tid);
+                return true;
+            }
+        }
+
+        public synchronized boolean releaseLock(PageId pid, TransactionId tid) {
+            assert pageTxMap.get(pid) != null : "page not locked!";
+            assert pageTxMap.get(pid) == tid : "can not release lock of another TX!";
+
+            pageTxMap.remove(pid);
+            return true;
+        }
+
+        public synchronized boolean holdsLock(PageId pid, TransactionId tid) {
+            if (pageTxMap.get(pid) == null)
+                return false;
+            else if (pageTxMap.get(pid) != tid)
+                return false;
+            else
+                return true;
+        }
+    }
 
     /**
      * Creates a BufferPool that caches up to numPages pages.
@@ -44,6 +81,7 @@ public class BufferPool {
         this.numPages = numPages;
         pages = new ConcurrentHashMap<>();
         pageAge = new ConcurrentHashMap<>();
+        lockManager = new PageLockManager();
         age = 0;
     }
     
@@ -79,6 +117,10 @@ public class BufferPool {
     public  Page getPage(TransactionId tid, PageId pid, Permissions perm)
         throws TransactionAbortedException, DbException {
         // some code goes here
+        boolean lockAcquired = false;
+        while (!lockAcquired)
+            lockAcquired = lockManager.acquireLock(pid, tid);
+
         if (pages.get(pid) != null)
             return pages.get(pid);
         else {
@@ -107,6 +149,7 @@ public class BufferPool {
     public  void releasePage(TransactionId tid, PageId pid) {
         // some code goes here
         // not necessary for lab1|lab2
+        lockManager.releaseLock(pid, tid);
     }
 
     /**
@@ -123,7 +166,7 @@ public class BufferPool {
     public boolean holdsLock(TransactionId tid, PageId p) {
         // some code goes here
         // not necessary for lab1|lab2
-        return false;
+        return lockManager.holdsLock(p, tid);
     }
 
     /**
