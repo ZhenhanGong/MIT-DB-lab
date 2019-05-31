@@ -149,11 +149,9 @@ public class TableStats {
         for (int i = 0; i < numFields; i++) {
             Type type = types[i];
             if (type == Type.INT_TYPE) {
-                // TODO what if max-min < NUM_HIST_BINS
                 IntHistogram intHistogram = new IntHistogram(NUM_HIST_BINS, mins[i], maxs[i]);
                 intHistogramHashMap.put(i, intHistogram);
             } else {
-                // TODO what if max-min < NUM_HIST_BINS
                 StringHistogram stringHistogram = new StringHistogram(NUM_HIST_BINS);
                 stringHistogramHashMap.put(i, stringHistogram);
             }

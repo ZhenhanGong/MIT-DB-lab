@@ -52,7 +52,7 @@ public class StringAggregator implements Aggregator {
      */
     public void mergeTupleIntoGroup(Tuple tup) {
         // some code goes here
-        // TODO only support count
+        // TODO note: only support count
         if (no_grouping) {
             aggrResult2++;
 
