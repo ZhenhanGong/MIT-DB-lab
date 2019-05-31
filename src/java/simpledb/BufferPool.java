@@ -4,6 +4,7 @@ import java.io.*;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Random;
 import java.util.Vector;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -49,10 +50,10 @@ public class BufferPool {
 
     private class PageLockManager {
 
-        HashMap<PageId, Vector<Lock>> lockMap;
+        ConcurrentHashMap<PageId, Vector<Lock>> lockMap;
 
         public PageLockManager() {
-            lockMap = new HashMap<>();
+            lockMap = new ConcurrentHashMap<>();
         }
 
         public synchronized boolean acquireLock(PageId pid, TransactionId tid, int lockType) {
@@ -201,8 +202,19 @@ public class BufferPool {
             lockType = 1;
 
         boolean lockAcquired = false;
-        while (!lockAcquired)
+        long start = System.currentTimeMillis();
+        long timeOut = new Random().nextInt(2000) + 1000;
+        while (!lockAcquired) {
+            try {
+                Thread.sleep(50);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            long now = System.currentTimeMillis();
+            if (now - start > timeOut)
+                throw new TransactionAbortedException();
             lockAcquired = lockManager.acquireLock(pid, tid, lockType);
+        }
 
         if (pages.get(pid) != null)
             return pages.get(pid);
@@ -278,7 +290,7 @@ public class BufferPool {
         }
     }
 
-    private void restorePages(TransactionId tid) {
+    private synchronized void restorePages(TransactionId tid) {
 
         for (PageId pid : pages.keySet()) {
             Page page = pages.get(pid);
@@ -312,7 +324,6 @@ public class BufferPool {
         throws DbException, IOException, TransactionAbortedException {
         // some code goes here
         // not necessary for lab1
-        // TODO cache dirty page to ensure up-to-date pages
         DbFile file =  Database.getCatalog().getDatabaseFile(tableId);
         ArrayList<Page> pageList = file.insertTuple(tid, t);
 
@@ -338,7 +349,6 @@ public class BufferPool {
         throws DbException, IOException, TransactionAbortedException {
         // some code goes here
         // not necessary for lab1
-        // TODO cache dirty page to ensure up-to-date pages
         RecordId rid = t.getRecordId();
         PageId pid = rid.getPageId();
         int tableId = pid.getTableId();
