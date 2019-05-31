@@ -391,13 +391,19 @@ public class BufferPool {
     private synchronized  void evictPage() throws DbException {
         // some code goes here
         // not necessary for lab1
+        // TODO what if evict a page which is locked by a Tx
         assert numPages == pages.size() : "Buffor Pool is not full, not need to evict page";
 
         PageId pageId = null;
         int oldestAge = -1;
 
-        // find the oldest page to evict
+        // find the oldest page to evict (which is not dirty)
         for (PageId pid: pageAge.keySet()) {
+            Page page = pages.get(pid);
+            // skip dirty page
+            if (page.isDirty() != null)
+                continue;
+
             if (pageId == null) {
                 pageId = pid;
                 oldestAge = pageAge.get(pid);
@@ -410,16 +416,18 @@ public class BufferPool {
             }
         }
 
+        if (pageId == null)
+            throw  new DbException("failed to evict page: all pages are either dirty");
         Page page = pages.get(pageId);
 
         // isDirty
-        if (page.isDirty() != null) {
-            try {
-                flushPage(pageId);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
+//        if (page.isDirty() != null) {
+//            try {
+//                flushPage(pageId);
+//            } catch (IOException e) {
+//                e.printStackTrace();
+//            }
+//        }
 
         // evict page
         pages.remove(pageId);
