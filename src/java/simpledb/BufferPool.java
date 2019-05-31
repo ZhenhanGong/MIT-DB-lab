@@ -244,10 +244,7 @@ public class BufferPool {
         // some code goes here
         // not necessary for lab1|lab2
 
-        for (PageId pid: pages.keySet()) {
-            if (holdsLock(tid, pid))
-                releasePage(tid, pid);
-        }
+        transactionComplete(tid, true);
     }
 
     /** Return true if the specified transaction has a lock on the specified page */
@@ -271,8 +268,29 @@ public class BufferPool {
         // release all locks
         if (commit) {
             flushPages(tid);
+        } else {
+            restorePages(tid);
         }
-        transactionComplete(tid);
+
+        for (PageId pid: pages.keySet()) {
+            if (holdsLock(tid, pid))
+                releasePage(tid, pid);
+        }
+    }
+
+    private void restorePages(TransactionId tid) {
+
+        for (PageId pid : pages.keySet()) {
+            Page page = pages.get(pid);
+
+            if (page.isDirty() == tid) {
+                int tabId = pid.getTableId();
+                DbFile file =  Database.getCatalog().getDatabaseFile(tabId);
+                Page pageFromDisk = file.readPage(pid);
+
+                pages.put(pid, pageFromDisk);
+            }
+        }
     }
 
     /**
@@ -379,8 +397,11 @@ public class BufferPool {
     public synchronized  void flushPages(TransactionId tid) throws IOException {
         // some code goes here
         // not necessary for lab1|lab2
-        // TODO
         for (PageId pid : pages.keySet()) {
+            Page page = pages.get(pid);
+            if (page.isDirty() == tid) {
+                flushPage(pid);
+            }
         }
     }
 
@@ -419,15 +440,6 @@ public class BufferPool {
         if (pageId == null)
             throw  new DbException("failed to evict page: all pages are either dirty");
         Page page = pages.get(pageId);
-
-        // isDirty
-//        if (page.isDirty() != null) {
-//            try {
-//                flushPage(pageId);
-//            } catch (IOException e) {
-//                e.printStackTrace();
-//            }
-//        }
 
         // evict page
         pages.remove(pageId);
