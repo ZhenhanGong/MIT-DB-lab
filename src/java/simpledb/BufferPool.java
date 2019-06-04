@@ -205,11 +205,11 @@ public class BufferPool {
         long start = System.currentTimeMillis();
         long timeOut = new Random().nextInt(2000) + 1000;
         while (!lockAcquired) {
-            try {
-                Thread.sleep(50);
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
+//            try {
+//                Thread.sleep(50);
+//            } catch (Exception e) {
+//                e.printStackTrace();
+//            }
             long now = System.currentTimeMillis();
             if (now - start > timeOut)
                 throw new TransactionAbortedException();
